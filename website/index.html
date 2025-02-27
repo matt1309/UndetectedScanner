@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JSON Editor</title>
+    <style>
+        :root {
+            --primary-color: #141515;
+            /* Darker blue */
+            --secondary-color: #f2f2f2;
+            /* Light gray */
+            --text-color: #333;
+            /* Dark gray */
+            --accent-color: #286090;
+            /* Light red accent */
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--secondary-color);
+            color: var(--text-color);
+            line-height: 1.6;
+        }
+
+        h1,
+        h2 {
+            margin: 10px 0;
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        #generalSettings,
+        #jsonEditor {
+            margin-bottom: 20px;
+            border: 1px solid var(--text-color);
+            border-radius: 8px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        textarea {
+            width: 100%;
+            height: 10px;
+            /* Adjust the height as needed */
+            padding: 10px;
+            font-family: inherit;
+            border: 1px solid var(--text-color);
+            border-radius: 5px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        textarea,
+        input[type="text"] {
+            resize: both;
+            /* Allow vertical resizing */
+            max-width: 100%;
+            /* Limit maximum width */
+            max-height: 100x;
+            /* Limit maximum height */
+        }
+
+
+
+
+        /* Adjusted padding for buttons */
+        .add-button,
+        .remove-button,
+        button,
+        .file-input-label {
+            background-color: var(--primary-color);
+            color: #fff;
+            border: none;
+            padding: 6px 10px;
+            /* Adjusted padding for buttons */
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease;
+            font-size: 16px;
+            /* Larger font size */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            /* Subtle box-shadow */
+        }
+
+        .add-button:hover,
+        .remove-button:hover,
+        button:hover,
+        .file-input-label:hover {
+            background-color: #1a4a72;
+        }
+
+        /* Adjusted padding for smaller screens */
+        @media only screen and (max-width: 768px) {
+            input[type="text"] {
+                width: calc(100% - 100px);
+            }
+
+            .add-button,
+            .remove-button,
+            button,
+            .file-input-label {
+                padding: 4px 8px;
+                /* Adjusted padding for smaller screens */
+                font-size: 14px;
+                /* Smaller font size for smaller screens */
+            }
+
+            textarea {
+                width: 100%;
+                height: 10px;
+                /* Taller text boxes for smaller screens */
+                padding: 10px;
+                font-family: inherit;
+                font-size: 16px;
+                /* Larger font size */
+                border: 1px solid var(--text-color);
+                border-radius: 5px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>JSON Editor</h1>
+    <div id="generalSettings"></div>
+    <hr>
+    <h2>MultiPage Settings</h2>
+
+    <button onclick="addMultiPageItem()">Add MultiPage Item</button>
+    <button onclick="generateJSON()">Generate JSON</button>
+    <label for="fileInput" class="file-input-label">Choose File</label>
+    <input type="file" accept=".json" id="fileInput" onchange="importJSONFromFile(event)">
+    <div id="jsonEditor"></div>
+    <div id="jsonOutput"></div>
+
+    <script>
+        let data = {
+
+            "VPNmultiPage": [
+                "127.0.0.1:8118",
+                "127.0.0.1:8119"
+            ],
+            "VPNmultiPage_rebootscript": "python3 vpn_restart/vpn_restarter.py",
+            "VPNsinglePage_rebootscript": "",
+            "dataOutputCommand": "",
+            "VPNsinglePage": [
+                "",
+                "127.0.0.1:8119"
+            ],
+            "moderator_channel": "moderators_release_day",
+            "schedule_start": [
+                "07:00:00"
+            ],
+            "schedule_stop": [
+                "22:30:00"
+            ],
+            "manualThreads": 1,
+            "autoThreads": 1,
+            "vpn_threads_multiPage": 1,
+            "releaseDateMode": "no",
+            "webServer": "yes",
+            "port": 8081,
+            "pageTitle": "WhScraper",
+            "telegram_moderator_channel": "",
+            "telegram_token": "",
+            "telegram_user": "",
+            "discord_token": "",
+            "discord_guildID": 1,
+            "multiPage": {}
+        };
+
+
+
+
+
+        const schema = {
+            "VPNmultiPage": "string",
+            "VPNmultiPage_rebootscript": "string",
+            "VPNsinglePage_rebootscript": "string",
+            "dataOutputCommand": "string",
+            "VPNsinglePage": "string",
+            "moderator_channel": "string",
+            "schedule_start": "string",
+            "schedule_stop": "string",
+            "manualThreads": "number",
+            "autoThreads": "number",
+            "vpn_threads_multiPage": "number",
+            "releaseDateMode": "string",
+            "webServer": "string",
+            "port": "number",
+            "pageTitle": "string",
+            "telegram_moderator_channel": "string",
+            "telegram_token": "string",
+            "telegram_user": "string",
+            "discord_token": "string",
+            "discord_guildID": "number",
+            "multiPage": "object",
+            "frequency": "number",
+            "enabled": "boolean"
+        };
+
+        const firstAttributes = ["frequency", "channelTelegram", "offset", "offsetMax", "maxOutput", "channel", "keywords", "filter", "headers"];
+        const secondAttributes = ["prefix", "suffix", "functions", "selectors", "requestType"];
+
+        function getCleanName(name) {
+
+            let myMap = {
+                'VPNmultiPage': 'VPNs For multiPage Scans',
+                'VPNmultiPage_rebootscript': "VPN Reboot Command for multiPage",
+                'dataOutputCommand': 'Data Output Command',
+                'VPNsinglePage': 'VPNs For singlePage Scans',
+                'moderator_channel': 'Discord Moderator Channel name',
+                'schedule_start': 'List of bot start times',
+                'schedule_stop': 'List of bot stop times',
+                'manualThreads': 'Number of threads for manual thread allocations',
+                'autoThreads': 'Number of threads for auto thread allocation',
+                'releaseDateMode': 'Strict Sleep mode',
+                'webServer': 'Use internal webserver',
+                'port': 'WebServer Port',
+                'pageTitle': 'WebPage Title',
+                'telegram_moderator_channel': 'Telegram Moderator channel id',
+                'telegram_token': 'Telegram Bot token',
+                'discord_token': 'Discord Bot token',
+                'discord_guildID': 'Discord Guild/Server ID',
+                'link': 'Link',
+                'frequency': 'Frequency',
+                'offset': 'Offset',
+                'offsetMax': 'Offset Max',
+                'timeout': 'Website Load Timeout',
+                'maxOutput': 'Maximum result output sent in message',
+                'prefix': 'Prefix to append to start of scraped result',
+                'suffix': 'Suffix to append to end of scraped result',
+                'channel': 'Discord Channel',
+                'channelTelegram': 'Telegram Channel',
+                'keywords': 'Keyword to replace :::: in link',
+                'browser': 'Browser to use/spoof during scrape',
+                'filter': 'Filter (use !filterword for not filters)',
+                'functions': 'Scan technique',
+                'selectors': 'JQuyer Selector/xpath (xpath for xml only)'
+
+
+
+            };
+
+
+            if (myMap.hasOwnProperty(name)) {
+                return myMap[name];
+            } else {
+                return name;
+            }
+
+
+        }
+
+        function renderEditor() {
+            let editorHTML = '';
+            for (let multiPageItem in data.multiPage) {
+                editorHTML += `<h2>${getCleanName(multiPageItem)} <span class="remove-button" onclick="removeMultiPageItem('${multiPageItem}')">-</span></h2>`;
+                for (let key in data.multiPage[multiPageItem]) {
+                    if (Array.isArray(data.multiPage[multiPageItem][key])) {
+                        editorHTML += `<div>${getCleanName(key)}: `;
+                        for (let i = 0; i < data.multiPage[multiPageItem][key].length; i++) {
+                            editorHTML += `<div><span>${i + 1}. </span><textarea rows="3" cols="30" onchange="updateArrayValue('${multiPageItem}', '${key}', ${i}, this.value)" style="width: 300px;">${data.multiPage[multiPageItem][key][i] || ''}</textarea>
+                                   <span class="remove-button" onclick="removeArrayEntry('${multiPageItem}', '${key}', ${i}, this)">-</span></div>`;
+                        }
+                        editorHTML += `<span class="add-button" onclick="addArrayEntry('${multiPageItem}', '${key}')">+</span></div>`;
+
+
+                    } else if (schema[key] === 'boolean') {
+                        editorHTML += `<div>${getCleanName(key)}: <input type="checkbox" ${data.multiPage[multiPageItem][key] ? 'checked' : ''} onchange="updateValue('${multiPageItem}', '${key}', this.checked)"></div>`;
+                    } else {
+                        editorHTML += `<div>${getCleanName(key)}: <input type="text" value="${data.multiPage[multiPageItem][key] || ''}" onchange="updateValue('${multiPageItem}', '${key}', this.value)"></div>`;
+                    }
+                }
+                editorHTML += '<br>';
+            }
+            document.getElementById('jsonEditor').innerHTML = editorHTML;
+        }
+
+
+        function renderGeneralSettings() {
+            let settingsHTML = '<h2>General Settings</h2>';
+            for (let key in data) {
+                if (key !== "multiPage") {
+                    if (Array.isArray(data[key])) {
+                        settingsHTML += `<div>${getCleanName(key)}: `;
+                        for (let i = 0; i < data[key].length; i++) {
+                            settingsHTML += `<input type="text" value="${data[key][i] || ''}" onchange="updateGeneralSettings('${key}', ${i}, this.value)">`;
+                            settingsHTML += `<button class="remove-button" onclick="removeGeneralSettingArrayItem('${key}', ${i})"><span>-</span></button>`;
+                        }
+                        settingsHTML += `<span class="add-button" onclick="addGeneralSetting('${key}')">+</span></div>`;
+                    } else {
+                        settingsHTML += `<div>${getCleanName(key)}: <input type="text" value="${data[key] || ''}" onchange="updateGeneralSettings('${key}', null, this.value)"></div>`;
+                    }
+                }
+            }
+            document.getElementById('generalSettings').innerHTML = settingsHTML;
+        }
+
+        function generateJSON() {
+            renderEditor();
+            renderGeneralSettings();
+            let jsonOutput = document.getElementById("jsonOutput");
+            if (!jsonOutput) {
+                jsonOutput = document.createElement("div");
+                jsonOutput.id = "jsonOutput";
+                document.body.appendChild(jsonOutput);
+            }
+            jsonOutput.innerText = JSON.stringify(data, null, 2);
+        }
+
+
+
+        function parseValue(value, type) {
+            switch (type) {
+                case 'number':
+                    return Number(value);
+                case 'boolean':
+                return value === true || value === "true";
+                   // return value.toLowerCase() === 'true';
+
+                case 'array':
+                    return value.split(',').map(item => item.trim());
+                default:
+                    return value;
+            }
+        }
+
+
+
+
+
+
+
+
+
+        function updateGeneralSettings(key, index, value) {
+
+            const parsedValue = parseValue(value, schema[key]);
+            if (index !== null && index !== undefined) {
+                data[key][index] = parsedValue;
+            } else {
+                data[key] = parsedValue;
+            }
+        }
+
+        function addGeneralSetting(key) {
+            data[key].push("");
+            renderGeneralSettings();
+        }
+
+
+
+
+
+        function addMultiPageItem() {
+            let itemName = prompt("Enter MultiPage item name:");
+            if (itemName) {
+                data.multiPage[itemName] = {
+                    "link": "",
+                    "proxy": [],
+                    "frequency": [],
+                    "offset": [],
+                    "offsetMax": [],
+                    "timeout": 0,
+                    "maxOutput": [],
+                    "prefix": [],
+                    "suffix": [],
+                    "channel": [],
+                    "channelTelegram": [],
+                    "keywords": [],
+                    "browser": [],
+                    "filter": [],
+                    "functions": [],
+                    "selectors": [],
+                    "requestType": "",
+                    "requestData": ""
+                };
+                generateJSON();
+            }
+        }
+
+        function addArrayEntry(itemName, key) {
+            data.multiPage[itemName][key].push(null);
+            syncArrays(itemName, key);
+            renderEditor(); // Re-render the editor to reflect the changes
+            generateJSON(); // Generate JSON output
+        }
+
+        function removeMultiPageItem(itemName) {
+            delete data.multiPage[itemName];
+            generateJSON();
+        }
+
+        function removeArrayEntry(itemName, key, index, element) {
+            // Remove the container div which holds the text box and the remove button
+            element.parentElement.remove();
+
+            // Remove the item from the array, if the array exists
+            if (data.multiPage[itemName] && Array.isArray(data.multiPage[itemName][key])) {
+                data.multiPage[itemName][key].splice(index, 1);
+
+                // Remove the corresponding item from other arrays
+                firstAttributes.concat(secondAttributes).forEach(attr => {
+                    if (attr !== key && data.multiPage[itemName][attr] && Array.isArray(data.multiPage[itemName][attr])) {
+                        data.multiPage[itemName][attr].splice(index, 1);
+                    }
+                });
+            }
+
+            // Re-render the editor to reflect the changes
+            renderEditor();
+
+            // Regenerate JSON
+            generateJSON();
+        }
+
+        function syncArrays(itemName, key) {
+            if (firstAttributes.includes(key)) {
+                syncFirstGroupArrays(itemName);
+            } else if (secondAttributes.includes(key)) {
+                syncSecondGroupArrays(itemName);
+            }
+        }
+
+        function syncFirstGroupArrays(itemName) {
+            let maxLength = getMaxArrayLength(firstAttributes.map(attr => data.multiPage[itemName][attr]));
+            for (let attr of firstAttributes) {
+                fillArray(itemName, attr, maxLength);
+            }
+        }
+
+        function syncSecondGroupArrays(itemName) {
+            let maxLength = getMaxArrayLength(secondAttributes.map(attr => data.multiPage[itemName][attr]));
+            for (let attr of secondAttributes) {
+                fillArray(itemName, attr, maxLength);
+            }
+        }
+
+        function fillArray(itemName, key, length) {
+            if (!data.multiPage[itemName] || !data.multiPage[itemName][key]) {
+                data.multiPage[itemName] = data.multiPage[itemName] || {};
+                data.multiPage[itemName][key] = Array(length).fill("");
+                return;
+            }
+
+            // If the array is already initialized, update its length
+            while (data.multiPage[itemName][key].length < length) {
+                data.multiPage[itemName][key].push("");
+            }
+        }
+
+        function updateArrayValue(itemName, key, index, value) {
+            data.multiPage[itemName][key][index] = parseValue(value, schema[key]);
+        }
+
+        function updateValue(itemName, key, value) {
+            data.multiPage[itemName][key] = parseValue(value, schema[key]);
+        }
+
+        function getMaxArrayLength(arrays) {
+            return arrays.reduce((max, arr) => {
+                if (arr) {
+                    return Math.max(max, arr.length);
+                } else {
+                    return max;
+                }
+            }, 0);
+        }
+
+        function removeGeneralSettingArrayItem(key, index) {
+            data[key].splice(index, 1);
+            renderGeneralSettings();
+            generateJSON();
+        }
+
+        function importJSONFromFile(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const content = e.target.result;
+                try {
+                    const importedData = JSON.parse(content);
+                    // Merge imported generalSettings with existing generalSettings
+                    Object.assign(data, importedData);
+                    // Merge imported multiPage settings with existing multiPage settings
+                    Object.assign(data.multiPage, importedData.multiPage);
+                    // Re-render both general settings and multiPage settings sections
+                    renderGeneralSettings();
+                    renderEditor();
+                } catch (error) {
+                    console.error('Error parsing JSON file:', error);
+                    alert(`Error parsing JSON file: ${error.message}. Please make sure the file is valid JSON.`);
+                }
+            };
+            reader.readAsText(file);
+        }
+        // Initially generate JSON
+        generateJSON();
+
+
+
+
+
+
+        document.addEventListener("DOMContentLoaded", function () {
+            fetch('/getConfig')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(configData => {
+                    if (configData) {
+                        data = configData; // Load fetched data into the data object
+                    }
+                    generateJSON(); // Generate JSON whether data was fetched or not
+                })
+                .catch(error => {
+                    console.error('Error fetching config data:', error);
+                    generateJSON(); // Generate JSON with default data if fetch fails
+                });
+        });
+
+
+
+
+
+    </script>
+</body>
+
+</html>
